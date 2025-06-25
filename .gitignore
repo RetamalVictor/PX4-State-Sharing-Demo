@@ -49,9 +49,9 @@ Thumbs.db
 *.wmv
 
 # --- ROS2 / Colcon build artifacts ---
-build/
-install/
-log/
+**/build/
+**/install/
+**/log/
 
 # colcon metadata
 colcon.meta
