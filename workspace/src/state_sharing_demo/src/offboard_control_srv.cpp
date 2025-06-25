@@ -87,6 +87,11 @@ void OffboardControl::publishPositionSetpoint(double x, double y, double z, doub
 void OffboardControl::publishVelocitySetpoint(double vx, double vy, double vz, double yaw_rate)
 {
   TrajectorySetpoint sp{};
+  sp.position = {
+    std::numeric_limits<float>::quiet_NaN(),
+    std::numeric_limits<float>::quiet_NaN(),
+    std::numeric_limits<float>::quiet_NaN()
+  };
   sp.velocity     = {static_cast<float>(vx), static_cast<float>(vy), static_cast<float>(vz)};
   sp.yaw          = 0.0f;
   sp.yawspeed     = static_cast<float>(yaw_rate);
@@ -202,7 +207,7 @@ void OffboardControl::publishCurrentSetpoint()
   switch (fsm_.state()) {
     case State::VelocityControl:
       publishOffboardCtrlMode(false, true);
-      publishVelocitySetpoint(1.0, 0.0, -1.0, 0.0);
+      publishVelocitySetpoint(10.0, 0.0, 0.0, 0.0);
       break;
 
     default:
