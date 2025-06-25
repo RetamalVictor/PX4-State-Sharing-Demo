@@ -1,70 +1,57 @@
 cmake_minimum_required(VERSION 3.5)
 project(state_sharing_demo)
 
-# Default to C99
-if(NOT CMAKE_C_STANDARD)
-	set(CMAKE_C_STANDARD 99)
-endif()
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Default to C++14
-if(NOT CMAKE_CXX_STANDARD)
-	set(CMAKE_CXX_STANDARD 14)
-endif()
-
-if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-	add_compile_options(-Wall -Wextra -Wpedantic)
-endif()
-
-# find dependencies
-find_package(builtin_interfaces REQUIRED)
+###############################################################################
+# Dependencies (only what we really use)
+###############################################################################
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp       REQUIRED)
+find_package(px4_msgs     REQUIRED)
 find_package(eigen3_cmake_module REQUIRED)
 find_package(Eigen3 REQUIRED)
-find_package(geometry_msgs REQUIRED)
-find_package(px4_msgs REQUIRED)
-find_package(rclcpp REQUIRED)
-find_package(sensor_msgs REQUIRED)
-find_package(rclpy REQUIRED)
 
-#################
-# Setup targets #
-#################
+###############################################################################
+# Library: implementation (src/) + public headers (include/)
+###############################################################################
+add_library(offboard_control SHARED
+  src/offboard_control_srv.cpp)
 
-include_directories(include)
+target_include_directories(offboard_control PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
 
-# examples/offboard/offboard_control_srv
-add_executable(offboard_control_srv src/examples/offboard/offboard_control_srv.cpp)
-ament_target_dependencies(offboard_control_srv rclcpp px4_msgs)
-install(TARGETS offboard_control_srv DESTINATION lib/${PROJECT_NAME})
+ament_target_dependencies(offboard_control rclcpp px4_msgs)
 
+###############################################################################
+# Tiny launcher that just spins the node
+###############################################################################
+add_executable(offboard_control_main
+  apps/offboard_control_main.cpp)
 
-############
-# Install ##
-############
+target_link_libraries(offboard_control_main
+  offboard_control)
 
-# Export information to downstream packages
-ament_export_dependencies(ament_cmake rclcpp rosidl_default_runtime eigen3_cmake_module Eigen3 px4_msgs geometry_msgs sensor_msgs)
+ament_target_dependencies(offboard_control_main rclcpp)
 
+###############################################################################
+# Install
+###############################################################################
+install(TARGETS
+    offboard_control
+    offboard_control_main
+  LIBRARY DESTINATION lib           # .so
+  RUNTIME DESTINATION lib/${PROJECT_NAME})
 
-# # Install launch files.
-# install(DIRECTORY launch DESTINATION share/${PROJECT_NAME}/)
+install(DIRECTORY include/ DESTINATION include)
 
-# Install tests
-install(DIRECTORY test DESTINATION share/${PROJECT_NAME}/)
-
-
-############
-# Testing ##
-############
-
-if(BUILD_TESTING)
-	find_package(ament_lint_auto REQUIRED)
-	# the following line skips the linter which checks for copyrights
-	# uncomment the line when a copyright and license is not present in all source files
-	#set(ament_cmake_copyright_FOUND TRUE)
-	# the following line skips cpplint (only works in a git repo)
-	# uncomment the line when this package is not in a git repo
-	#set(ament_cmake_cpplint_FOUND TRUE)
-	ament_lint_auto_find_test_dependencies()
-endif()
+###############################################################################
+# Export for downstream packages
+###############################################################################
+ament_export_include_directories(include)
+ament_export_libraries(offboard_control)
+ament_export_dependencies(rclcpp px4_msgs)
 
 ament_package()

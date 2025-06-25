@@ -58,23 +58,23 @@ windows:
         # controller for PX4 instance 1  (MAV_SYS_ID 1)
         - |
             sleep 22
-            ros2 run px4_ros_com offboard_control_srv \
+            ros2 run state_sharing_demo offboard_control_main \
               --ros-args -r __ns:=/px4_1 \
-              -p use_sim_time:=true
+              -p use_sim_time:=true -p takeoff_alt:=5.0 -p tick_hz:=10.0
 
         # controller for PX4 instance 2  (MAV_SYS_ID 2)
         - |
             sleep 25
-            ros2 run px4_ros_com offboard_control_srv\
+            ros2 run state_sharing_demo offboard_control_main\
               --ros-args -r __ns:=/px4_2 \
-              -p use_sim_time:=true
+              -p use_sim_time:=true -p takeoff_alt:=5.0 -p tick_hz:=10.0
 
         # controller for PX4 instance 3  (MAV_SYS_ID 3)
         - |
             sleep 27
-            ros2 run px4_ros_com offboard_control_srv \
+            ros2 run state_sharing_demo offboard_control_main \
               --ros-args -r __ns:=/px4_3 \
-              -p use_sim_time:=true
+              -p use_sim_time:=true -p takeoff_alt:=5.0 -p tick_hz:=10.0
 
         # --- optional monitoring panes (keep or drop) ----------------
         - |
