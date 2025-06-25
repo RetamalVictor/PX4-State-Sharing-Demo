@@ -1,5 +1,6 @@
 /app/workspace/install/state_sharing_demo/lib/liboffboard_control.so
 /app/workspace/install/state_sharing_demo/lib/state_sharing_demo/offboard_control_main
+/app/workspace/install/state_sharing_demo/include/velocity_controller.hpp
 /app/workspace/install/state_sharing_demo/include/offboard_control_srv.hpp
 /app/workspace/install/state_sharing_demo/include/state_machine.hpp
 /app/workspace/install/state_sharing_demo/share/state_sharing_demo/environment/library_path.sh

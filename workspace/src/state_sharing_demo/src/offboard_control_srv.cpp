@@ -1,9 +1,4 @@
 #include "offboard_control_srv.hpp"
-
-#include <px4_msgs/msg/vehicle_command.hpp>
-#include <px4_msgs/msg/vehicle_status.hpp>
-
-#include <cmath>
 #include <chrono>
 
 using namespace std::chrono_literals;
@@ -35,15 +30,15 @@ OffboardControl::OffboardControl(const rclcpp::NodeOptions &opts)
 
     /* ─── Publishers / client / subscriber ────────────────────────────────*/
     offboard_ctrl_mode_pub_ = create_publisher<OffboardControlMode>(
-        prefix + "in/offboard_control_mode", 10);
+        prefix + "in/offboard_control_mode", rclcpp::SystemDefaultsQoS());
 
     traj_setpoint_pub_ = create_publisher<TrajectorySetpoint>(
-        prefix + "in/trajectory_setpoint", 10);
+        prefix + "in/trajectory_setpoint", rclcpp::SystemDefaultsQoS());
 
     vehicle_cmd_cli_ = create_client<VehicleCommandSrv>(prefix + "vehicle_command");
 
     local_pos_sub_ = create_subscription<VehicleLocalPosMsg>(
-        prefix + "out/vehicle_local_position", 10,
+        prefix + "out/vehicle_local_position",
         rclcpp::SensorDataQoS(),  
         std::bind(&OffboardControl::onLocalPos, this, std::placeholders::_1));
 
@@ -55,7 +50,7 @@ OffboardControl::OffboardControl(const rclcpp::NodeOptions &opts)
 
     /* ─── Create main timer ───────────────────────────────────────────────*/
     timer_ = create_wall_timer(
-        std::chrono::duration<double>(1 / tick_hz_),
+        std::chrono::duration<double>(100ms),
         std::bind(&OffboardControl::onTimer, this));
     // timer_ = create_wall_timer(100ms, std::bind(&OffboardControl::timer_callback, this));
 
@@ -158,7 +153,7 @@ void OffboardControl::disarm()
 void OffboardControl::onCmdResult(
     rclcpp::Client<VehicleCommandSrv>::SharedFuture future)
 {
-  auto status = future.wait_for(100ms);
+  auto status = future.wait_for(1s);
   if (status != std::future_status::ready) {
     RCLCPP_WARN(get_logger(), "VehicleCommand service timed‑out");
     return;
@@ -181,7 +176,21 @@ static double current_alt_ = NAN_ALT;
 
 void OffboardControl::onLocalPos(VehicleLocalPosMsg::SharedPtr msg)
 {
-  current_alt_ = -static_cast<double>(msg->z);  // NED z is down ⇒ invert
+  current_pos_.x() = msg->x;
+  current_pos_.y() = msg->y;
+  current_pos_.z() = msg->z;
+  current_alt_ = -static_cast<double>(msg->z);// NED z is down ⇒ invert
+  vel_ctrl_.updateSelf(current_pos_);
+}
+
+void OffboardControl::onStateSharing(StateSharingMsg::SharedPtr msg)
+{
+  Eigen::Vector3d neigh{
+    static_cast<double>(msg->global_position_lon),
+    static_cast<double>(msg->global_position_lat),
+    static_cast<double>(msg->global_position_alt)
+  };
+  vel_ctrl_.updateNeighbour(msg->frame_id, neigh);
 }
 
 /*──────────────────────────────────────────────────────────────────────────*/
@@ -193,10 +202,10 @@ void OffboardControl::publishCurrentSetpoint()
   switch (fsm_.state()) {
     case State::VelocityControl:
       publishOffboardCtrlMode(false, true);
-      publishVelocitySetpoint(1.0, 0.0, 0.0, 0.0);
+      publishVelocitySetpoint(1.0, 0.0, -1.0, 0.0);
       break;
 
-    default: /* WaitForHeartbeat, RequestOffboard, StabiliseOffboard, ArmRequested, Takeoff, Hover, Landing */
+    default:
       publishOffboardCtrlMode(true, false);
       publishPositionSetpoint(0.0, 0.0, -takeoff_alt_, 0.0);
       break;
@@ -210,8 +219,6 @@ void OffboardControl::onTimer()
 
   switch (fsm_.state()) {
     case State::WaitForHeartbeat:
-      /* In real systems you would wait for an FMU heartbeat topic.   */
-      /* For the example we immediately request Off‑board mode.       */
       requestOffboardMode();
       fsm_.transit(RequestOffboard);
       break;
@@ -236,26 +243,18 @@ void OffboardControl::onTimer()
       break;
 
     case State::Takeoff:
-      // /* Position control until altitude reached */
-      // publishOffboardCtrlMode(true, false);
-      // publishPositionSetpoint(0.0, 0.0, -takeoff_alt_, 0.0);
-
       if (!std::isnan(current_alt_) && current_alt_ >= takeoff_alt_ - 0.2) {
         fsm_.transit(Hover);
       }
       break;
 
     case State::Hover:
-      // publishOffboardCtrlMode(true, false);
-      // publishPositionSetpoint(0.0, 0.0, -takeoff_alt_, 0.0);
       if (fsm_.since(2.0)) {   // hover 2 s
         fsm_.transit(VelocityControl);
       }
       break;
 
     case State::VelocityControl:
-      // publishOffboardCtrlMode(false, true);
-      // publishVelocitySetpoint(1.0, 0.0, 0.0, 0.0);  // fly forward 1 m/s
       break;
 
     case Landing:

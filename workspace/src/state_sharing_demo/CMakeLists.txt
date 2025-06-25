@@ -11,7 +11,7 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp       REQUIRED)
 find_package(px4_msgs     REQUIRED)
 find_package(eigen3_cmake_module REQUIRED)
-find_package(Eigen3 REQUIRED)
+find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 
 ###############################################################################
 # Library: implementation (src/) + public headers (include/)
@@ -24,6 +24,10 @@ target_include_directories(offboard_control PUBLIC
   $<INSTALL_INTERFACE:include>)
 
 ament_target_dependencies(offboard_control rclcpp px4_msgs)
+# link Eigen with the plain signature to avoid mixing keyword/plain
+target_link_libraries(offboard_control
+   Eigen3::Eigen
+)
 
 ###############################################################################
 # Tiny launcher that just spins the node

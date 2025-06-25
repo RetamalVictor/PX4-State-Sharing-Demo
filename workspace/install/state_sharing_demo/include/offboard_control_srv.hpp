@@ -1,13 +1,16 @@
 #pragma once
 
 #include <rclcpp/rclcpp.hpp>
+#include <Eigen/Dense>
 
 #include <px4_msgs/msg/offboard_control_mode.hpp>
 #include <px4_msgs/msg/trajectory_setpoint.hpp>
 #include <px4_msgs/msg/vehicle_local_position.hpp>
+#include <px4_msgs/msg/state_sharing_msg.hpp>
 #include <px4_msgs/srv/vehicle_command.hpp>
 
 #include "state_machine.hpp"
+#include "velocity_controller.hpp"
 
 namespace state_sharing_demo {
 
@@ -34,6 +37,7 @@ class OffboardControl final : public rclcpp::Node
   using TrajectorySetpoint  = px4_msgs::msg::TrajectorySetpoint;
   using VehicleCommandSrv   = px4_msgs::srv::VehicleCommand;
   using VehicleLocalPosMsg  = px4_msgs::msg::VehicleLocalPosition;
+  using StateSharingMsg     = px4_msgs::msg::StateSharingMsg;
 
 public:
   explicit OffboardControl(const rclcpp::NodeOptions &opts =
@@ -42,7 +46,6 @@ public:
   void disarm();
 
 private:
-    /* ───── Finite-state definition ───── */
     enum class State {
     WaitForHeartbeat,
     RequestOffboard,
@@ -56,6 +59,8 @@ private:
     };
 
     StateMachine<State> fsm_{this, State::WaitForHeartbeat};
+    VelocityController    vel_ctrl_;        
+    Eigen::Vector3d       current_pos_{};   
 
     /* ───── Parameters ───── */
     double takeoff_alt_;   ///< metres (-Z in NED)
@@ -63,14 +68,15 @@ private:
 
     /* ───── PX4 identifiers ───── */
     uint8_t ident_{1};           ///< SYS_ID – 1-indexed like MAVLink
-
+    std::string prefix_;
+  
     /* ───── ROS interfaces ───── */
     rclcpp::Publisher<OffboardControlMode>::SharedPtr offboard_ctrl_mode_pub_;
     rclcpp::Publisher<TrajectorySetpoint>::SharedPtr  traj_setpoint_pub_;
     rclcpp::Subscription<VehicleLocalPosMsg>::SharedPtr local_pos_sub_;
     rclcpp::Client<VehicleCommandSrv>::SharedPtr      vehicle_cmd_cli_;
     rclcpp::TimerBase::SharedPtr                      timer_;
-
+    rclcpp::Subscription<StateSharingMsg>::SharedPtr  state_sharing_sub_;
     /* ───── Service-reply bookkeeping ───── */
     uint8_t service_result_{0};
     bool    service_done_{false};
@@ -86,6 +92,8 @@ private:
     void onCmdResult(rclcpp::Client<VehicleCommandSrv>::SharedFuture);
     void onTimer();
     void onLocalPos(VehicleLocalPosMsg::SharedPtr msg);
+    void onStateSharing(const std::shared_ptr<StateSharingMsg> msg);
+
 
     /* ───── Non-copyable ───── */
     OffboardControl(const OffboardControl &)            = delete;

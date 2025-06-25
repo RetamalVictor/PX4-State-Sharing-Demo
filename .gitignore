@@ -48,3 +48,37 @@ Thumbs.db
 *.mov
 *.wmv
 
+# --- ROS2 / Colcon build artifacts ---
+build/
+install/
+log/
+
+# colcon metadata
+colcon.meta
+colcon_ignore
+
+# ROS overlay tools
+.rosinstall
+
+# --- CMake artifacts ---
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# --- Python caches & packaging ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# --- Editor / IDE files ---
+.vscode/
+.idea/
+*~
+*.swp
+*.bak
+*.tmp
+
+# --- Misc ---
+.DS_Store
+Thumbs.db

@@ -49,7 +49,11 @@ RUN /bin/bash -c 'echo mavlink start  \
 -p \
 -n \$STATE_SHARING_INTERFACE' \
 >> /setup_repos/PX4-Autopilot/build/px4_sitl_default/etc/init.d-posix/px4-rc.mavlink
-  
+
 RUN /bin/bash -c "echo source /setup_repos/uros_ws/install/local_setup.sh" >> ~/.bashrc
 RUN /bin/bash -c "git config --global --add safe.directory '*'"
+
+RUN source /opt/ros/humble/setup.bash
+RUN apt install ros-humble-ros-gzharmonic -y
+
 COPY tmux.conf /root/.tmux.conf
