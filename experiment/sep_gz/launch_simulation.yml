@@ -1,0 +1,104 @@
+name: launch_simulation
+root: ../../../                         # → adjust if your repo lives elsewhere
+
+# -------------------------------------------------------------------
+# Common environment for every pane
+# -------------------------------------------------------------------
+pre_window:
+  - export TZ='Asia/Dubai'
+  - source ~/.bashrc
+  - source /setup_repos/uros_ws/install/setup.bash
+  - source /app/workspace/install/setup.bash          # your ROS 2 overlay
+  - export PYTHONOPTIMIZE=1
+  - export PYTHONDONTWRITEBYTECODE=1
+  - export PX4_GZ_MODEL=x500                          # ⟵ changed
+  - export PX4_SYS_AUTOSTART=4001                     # ⟵ quad-rotor airframe
+  - export PX4_GZ_WORLD=default                       # (typo fixed)
+  - export ROS_DOMAIN_ID=15
+  # - export HEADLESS=1
+  - export PX4_SIM_SPEED_FACTOR=0.7
+  - export PX4_SIM_TIME=1
+  - export PX4_PARAM_UXRCE_DDS_SYNCT=1
+  - export PX4_PARAM_UXRCE_DDS_SYNCC=1
+  - export GZ_SIM_RESOURCE_PATH=/setup_repos/PX4-Autopilot/Tools/simulation/gz/models:/setup_repos/PX4-Autopilot/Tools/simulation/gz/worlds
+
+  # -------------------------------------------------------------------
+windows:
+  # ------------------------------------------------ Gazebo server -----
+  - gazebo:
+      layout: single
+      panes:
+        - |
+          cd /setup_repos/PX4-Autopilot/Tools/simulation/gz
+
+          echo "Launching Gazebo world '${PX4_GZ_WORLD}.sdf' with PX4 plugin"
+          
+          # point Gazebo at the PX4 models and plugin config
+          export GZ_SIM_RESOURCE_PATH=/setup_repos/PX4-Autopilot/Tools/simulation/gz/models
+          export GZ_SIM_SERVER_CONFIG_PATH=/setup_repos/PX4-Autopilot/Tools/simulation/gz/server.config
+
+          # optional networking overrides
+          PART=${GZ_PARTITION:+GZ_PARTITION=$GZ_PARTITION}
+          IP=${GZ_IP:+GZ_IP=$GZ_IP}
+
+          $PART $IP gz sim -r worlds/${PX4_GZ_WORLD}.sdf
+
+  # ------------------------------------------------ PX4 SITL ---------
+  - px4_sitl:
+      layout: tiled
+      panes:
+        - |
+          cd /setup_repos/PX4-Autopilot
+          PX4_GZ_STANDALONE=1 PX4_SYS_AUTOSTART=4001 PX4_GZ_MODEL_POSE="0,0" PX4_SIM_MODEL=gz_x500 ./build/px4_sitl_default/bin/px4 -i 1
+        - |
+          cd /setup_repos/PX4-Autopilot
+          PX4_GZ_STANDALONE=1 PX4_SYS_AUTOSTART=4001 PX4_GZ_MODEL_POSE="0,1" PX4_SIM_MODEL=gz_x500 ./build/px4_sitl_default/bin/px4 -i 2
+        - |
+          cd /setup_repos/PX4-Autopilot
+          PX4_GZ_STANDALONE=1 PX4_SYS_AUTOSTART=4001 PX4_GZ_MODEL_POSE="0,2" PX4_SIM_MODEL=gz_x500 ./build/px4_sitl_default/bin/px4 -i 3
+
+
+  # ------------------------------------------------ micro-ROS agent -
+  - dds_agent:
+      layout: tiled
+      panes:
+        - |
+          sleep 2
+          ros2 run micro_ros_agent micro_ros_agent udp4 -p 8888 \
+            --ros-args -p use_sim_time:=true
+        - |
+          sleep 5
+          ros2 run ros_gz_bridge parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock \
+            --ros-args -p use_sim_time:=true
+  # ------------------------------------------------ controller ------
+  - control:
+      layout: tiled
+      panes:
+        # controller for PX4 instance 1  (MAV_SYS_ID 1)
+        - |
+            sleep 22
+            ros2 run px4_ros_com offboard_control_srv \
+              --ros-args -r __ns:=/px4_1 \
+              -p use_sim_time:=true
+
+        # controller for PX4 instance 2  (MAV_SYS_ID 2)
+        - |
+            sleep 25
+            ros2 run px4_ros_com offboard_control_srv\
+              --ros-args -r __ns:=/px4_2 \
+              -p use_sim_time:=true
+
+        # controller for PX4 instance 3  (MAV_SYS_ID 3)
+        - |
+            sleep 27
+            ros2 run px4_ros_com offboard_control_srv \
+              --ros-args -r __ns:=/px4_3 \
+              -p use_sim_time:=true
+
+        # --- optional monitoring panes (keep or drop) ----------------
+        - |
+            sleep 19
+            ros2 topic echo /px4_1/fmu/in/offboard_control_mode
+        - |
+            sleep 19
+            ros2 topic echo /px4_1/fmu/in/trajectory_setpoint

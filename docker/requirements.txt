@@ -1,0 +1,7 @@
+geopy
+matplotlib
+numpy
+navpy
+pymavlink
+pyyaml
+pymap3d
