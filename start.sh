@@ -10,9 +10,7 @@ cd ..
 parent_folder=$PWD
 cd $current_folder
 
-# IMAGE_NAME=px4_x86_64:px4_custom_v2
-IMAGE_NAME=px4_x86_64:test.px4_pr_v2
-# IMAGE_NAME=repo.arrc.tii.ae/gnc-docker/px4_x86_64:test.px4_pr
+IMAGE_NAME=repo.arrc.tii.ae/gnc-docker/px4_x86_64:test.px4_pr
 echo the version of the image to run is $IMAGE_NAME
 
 # Allow Docker to interact with the X server
