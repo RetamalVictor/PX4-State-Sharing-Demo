@@ -13,7 +13,7 @@ pre_window:
   - export PYTHONDONTWRITEBYTECODE=1
   - export PX4_GZ_MODEL=x500                          # ⟵ changed
   - export PX4_SYS_AUTOSTART=4001                     # ⟵ quad-rotor airframe
-  - export PX4_GZ_WORLD=default                       # (typo fixed)
+  - export PX4_GZ_WORLD=forest                       # (typo fixed)
   - export ROS_DOMAIN_ID=15
   - export STATE_SHARING_INTERFACE=wlp0s20f3
   # - export HEADLESS=1
