@@ -6,8 +6,9 @@
 #include <px4_msgs/msg/offboard_control_mode.hpp>
 #include <px4_msgs/msg/trajectory_setpoint.hpp>
 #include <px4_msgs/msg/vehicle_local_position.hpp>
-#include <px4_msgs/msg/state_sharing_msg.hpp>
 #include <px4_msgs/srv/vehicle_command.hpp>
+#include <px4_msgs/msg/state_sharing_msg.hpp>
+#include <px4_msgs/msg/state_sharing_control.hpp>
 
 #include "state_machine.hpp"
 #include "velocity_controller.hpp"
@@ -33,11 +34,12 @@ namespace state_sharing_demo {
 
 class OffboardControl final : public rclcpp::Node
 {
-  using OffboardControlMode = px4_msgs::msg::OffboardControlMode;
-  using TrajectorySetpoint  = px4_msgs::msg::TrajectorySetpoint;
-  using VehicleCommandSrv   = px4_msgs::srv::VehicleCommand;
-  using VehicleLocalPosMsg  = px4_msgs::msg::VehicleLocalPosition;
-  using StateSharingMsg     = px4_msgs::msg::StateSharingMsg;
+  using OffboardControlMode     = px4_msgs::msg::OffboardControlMode;
+  using TrajectorySetpoint      = px4_msgs::msg::TrajectorySetpoint;
+  using VehicleCommandSrv       = px4_msgs::srv::VehicleCommand;
+  using VehicleLocalPosMsg      = px4_msgs::msg::VehicleLocalPosition;
+  using StateSharingMsg         = px4_msgs::msg::StateSharingMsg;
+  using StateSharingControlMsg  = px4_msgs::msg::StateSharingControl;
 
 public:
   explicit OffboardControl(const rclcpp::NodeOptions &opts =
@@ -48,6 +50,8 @@ public:
 private:
     enum class State {
     WaitForHeartbeat,
+    StartingStateSharing,
+    StableStateSharing,
     RequestOffboard,
     StabiliseOffboard,
     ArmRequested,
@@ -76,8 +80,12 @@ private:
     rclcpp::Subscription<VehicleLocalPosMsg>::SharedPtr local_pos_sub_;
     rclcpp::Client<VehicleCommandSrv>::SharedPtr      vehicle_cmd_cli_;
     rclcpp::TimerBase::SharedPtr                      timer_;
-    rclcpp::Subscription<StateSharingMsg>::SharedPtr  state_sharing_sub_;
+    rclcpp::Subscription<StateSharingMsg>::SharedPtr  state_sharing_out_sub_;
+    rclcpp::Publisher<StateSharingControlMsg>::SharedPtr state_sharing_ctrl_pub_;
+
     /* ───── Service-reply bookkeeping ───── */
+    void startStateSharing();
+    bool state_sharing_active_{false};
     uint8_t service_result_{0};
     bool    service_done_{false};
 

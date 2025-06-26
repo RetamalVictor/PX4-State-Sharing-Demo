@@ -98,7 +98,7 @@ windows:
         # --- optional monitoring panes (keep or drop) ----------------
         - |
             sleep 19
-            ros2 topic echo /px4_1/fmu/in/offboard_control_mode
+            ros2 topic echo /px4_1/fmu/in/incoming_state_sharing_control
         - |
             sleep 19
-            ros2 topic echo /px4_1/fmu/in/trajectory_setpoint
+            ros2 topic echo /px4_1/fmu/out/outgoing_state_sharing

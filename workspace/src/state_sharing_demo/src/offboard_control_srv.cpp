@@ -1,5 +1,6 @@
 #include "offboard_control_srv.hpp"
 #include <chrono>
+#include <thread>
 
 using namespace std::chrono_literals;
 
@@ -40,7 +41,14 @@ OffboardControl::OffboardControl(const rclcpp::NodeOptions &opts)
     local_pos_sub_ = create_subscription<VehicleLocalPosMsg>(
         prefix + "out/vehicle_local_position",
         rclcpp::SensorDataQoS(),  
-        std::bind(&OffboardControl::onLocalPos, this, std::placeholders::_1));
+        std::bind(&OffboardControl::onLocalPos, this, std::placeholders::_1)
+    );
+
+    state_sharing_out_sub_ = create_subscription<StateSharingMsg>(
+        prefix + "out/outgoing_state_sharing",
+        rclcpp::SensorDataQoS(),
+        std::bind(&OffboardControl::onStateSharing, this, std::placeholders::_1)
+    );
 
     /* ─── Wait for vehicle_command service ────────────────────────────────*/
     using namespace std::chrono_literals;
@@ -52,7 +60,21 @@ OffboardControl::OffboardControl(const rclcpp::NodeOptions &opts)
     timer_ = create_wall_timer(
         std::chrono::duration<double>(100ms),
         std::bind(&OffboardControl::onTimer, this));
-    // timer_ = create_wall_timer(100ms, std::bind(&OffboardControl::timer_callback, this));
+
+    /* ─── Publisher to trigger the state_sharing module ─────────────────*/
+    state_sharing_ctrl_pub_ = create_publisher<StateSharingControlMsg>(
+      prefix + "in/incoming_state_sharing_control",
+      rclcpp::QoS(1).transient_local());
+
+    // give DDS a moment to match 
+    // wait until someone is listening
+    while (rclcpp::ok() && state_sharing_ctrl_pub_->get_subscription_count() == 0) {
+      RCLCPP_INFO(get_logger(), 
+                  "waiting for subscriber on '%s'...", 
+                  state_sharing_ctrl_pub_->get_topic_name());
+      std::this_thread::sleep_for(100ms);
+    }    
+    startStateSharing();
 
     RCLCPP_INFO(get_logger(),
                 "OffboardControl: ns=%s SYS_ID=%u takeoff_alt=%.1f m @ %.0f Hz",
@@ -97,6 +119,17 @@ void OffboardControl::publishVelocitySetpoint(double vx, double vy, double vz, d
   sp.yawspeed     = static_cast<float>(yaw_rate);
   sp.timestamp    = get_clock()->now().nanoseconds() / 1000ULL;
   traj_setpoint_pub_->publish(sp);
+}
+
+
+void OffboardControl::startStateSharing()
+{
+  StateSharingControlMsg msg{};
+  msg.command = 1;
+  state_sharing_ctrl_pub_->publish(msg);
+  RCLCPP_INFO(get_logger(),
+              "Sent StateSharingControl command=1 on %s",
+              state_sharing_ctrl_pub_->get_topic_name());
 }
 
 /*──────────────────────────────────────────────────────────────────────────*/
@@ -195,6 +228,12 @@ void OffboardControl::onStateSharing(StateSharingMsg::SharedPtr msg)
     static_cast<double>(msg->global_position_lat),
     static_cast<double>(msg->global_position_alt)
   };
+  if (!state_sharing_active_) {
+    state_sharing_active_ = true;
+    RCLCPP_INFO(get_logger(),
+                "Received first StateSharingMsg; state sharing active.");
+  }
+ 
   vel_ctrl_.updateNeighbour(msg->frame_id, neigh);
 }
 
@@ -207,7 +246,7 @@ void OffboardControl::publishCurrentSetpoint()
   switch (fsm_.state()) {
     case State::VelocityControl:
       publishOffboardCtrlMode(false, true);
-      publishVelocitySetpoint(10.0, 0.0, 0.0, 0.0);
+      publishVelocitySetpoint(-5.0, 0.0, 0.0, 0.0);
       break;
 
     default:
@@ -225,7 +264,18 @@ void OffboardControl::onTimer()
   switch (fsm_.state()) {
     case State::WaitForHeartbeat:
       requestOffboardMode();
-      fsm_.transit(RequestOffboard);
+      fsm_.transit(StartingStateSharing);
+      break;
+
+    case State::StartingStateSharing:
+      startStateSharing();
+      fsm_.transit(StableStateSharing);
+      break;
+
+    case State::StableStateSharing:
+      if (state_sharing_active_) {
+        fsm_.transit(RequestOffboard);
+      }
       break;
 
     case State::RequestOffboard:
