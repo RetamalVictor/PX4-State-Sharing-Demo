@@ -64,7 +64,6 @@ colcon_ignore
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
-Makefile
 
 # --- Python caches & packaging ---
 __pycache__/

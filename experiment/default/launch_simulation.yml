@@ -15,12 +15,12 @@ pre_window:
   - export PX4_SYS_AUTOSTART=4001                     # ⟵ quad-rotor airframe
   - export PX4_GZ_WORLD=default                       # (typo fixed)
   - export ROS_DOMAIN_ID=15
+  - export STATE_SHARING_INTERFACE=wlp0s20f3
   # - export HEADLESS=1
   - export PX4_SIM_SPEED_FACTOR=0.7
   - export PX4_SIM_TIME=1
   - export PX4_PARAM_UXRCE_DDS_SYNCT=1
   - export PX4_PARAM_UXRCE_DDS_SYNCC=1
-
 
   # -------------------------------------------------------------------
 windows:

@@ -1,26 +1,28 @@
 #!/usr/bin/env bash
 
 # ANSI color codes
-GREEN='\033[0;32m'   # green text :contentReference[oaicite:0]{index=0}
-RED='\033[0;31m'     # red text :contentReference[oaicite:1]{index=1}
-YELLOW='\033[1;33m'  # yellow text :contentReference[oaicite:2]{index=2}
-NC='\033[0m'         # no color / reset :contentReference[oaicite:3]{index=3}
+GREEN='\033[0;32m'   # green text
+RED='\033[0;31m'     # red text
+YELLOW='\033[1;33m'  # yellow text
+NC='\033[0m'         # no color / reset
 
 BRANCH_NAME="${1:-test/px4_pr}"
-IMAGE_VERSION=px4_custom_v2
-IMAGE_NAME=px4_x86_64:$IMAGE_VERSION
+IMAGE_VERSION="test.px4_pr_v2"
+IMAGE_NAME="px4_x86_64:${IMAGE_VERSION}"
 
 # Announce build start
 echo -e "${YELLOW}==> Starting Docker build for image ${GREEN}${IMAGE_NAME}${YELLOW} <==${NC}"
+
 export DOCKER_BUILDKIT=1
+
 # Run the build
-if docker build --no-cache \
-       --ssh default \
-       --build-arg BRANCH_NAME="${BRANCH_NAME}" \
-       --network host \
-       --rm=false \
-       -t "${IMAGE_NAME}" \
-       "$(dirname "$0")"; then
+if DOCKER_BUILDKIT=1 docker build --no-cache "$(dirname "$0")" \
+     -t "${IMAGE_NAME}" \
+     --network host \
+     --rm=false \
+     --ssh default \
+     --build-arg BRANCH_NAME="${BRANCH_NAME}"
+then
     # Success
     echo -e "${GREEN}✓ Successfully built image ${IMAGE_NAME}${NC}"
 else
