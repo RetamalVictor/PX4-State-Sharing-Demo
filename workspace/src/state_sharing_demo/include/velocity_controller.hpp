@@ -8,40 +8,40 @@ namespace state_sharing_demo {
 
 /**
  * @brief  Simple flocking‐style consensus controller:
- *
- *   v = kp * (mean(neighbours) − self)
  */
 class VelocityController
 {
 public:
-  /// Set proportional gain
   void setGain(double kp) { kp_ = kp; }
+  void setIdent(uint8_t ident) { ident_ = ident; }
+  void setDesiredDistance(double d0) { desired_dist_ = d0; }
+  void setSafetyDistance(double r_safe) { r_safe_ = r_safe; }
+  void setDampingGain(double kd) { kd_ = kd; }
+  void setMaxSpeed(double v_max) { v_max_ = v_max; }
 
-  /// Update yourself (optional, you can also pass self each compute)
   void updateSelf(const Eigen::Vector3d &self) { self_ = self; }
-
-  /// Add or update a neighbour’s position
-  void updateNeighbour(uint16_t id, const Eigen::Vector3d &pos) {
-    neighbours_[id] = pos;
+  void updateCurrentVelocity(const Eigen::Vector3d &vel) { vel_current_ = vel; }
+  void updateNeighbourDistance(uint16_t id, const Eigen::Vector3d &rel) {
+    rel_distances_[id] = rel;
+  }
+  const std::unordered_map<uint16_t, Eigen::Vector3d> &getRelDistances() const {
+    return rel_distances_;
   }
 
-  /// Compute the velocity command based on current self-position
-  Eigen::Vector3d compute(const Eigen::Vector3d &self) {
-    if (neighbours_.empty()) {
-      return Eigen::Vector3d::Zero();
-    }
-    Eigen::Vector3d mean = Eigen::Vector3d::Zero();
-    for (auto &kv : neighbours_) {
-      mean += kv.second;
-    }
-    mean /= static_cast<double>(neighbours_.size());
-    return kp_ * (mean - self);
-  }
+  /// Compute the velocity command via attraction–repulsion over rel_distances_
+  Eigen::Vector3d compute();
 
 private:
-  double kp_{0.5};
-  Eigen::Vector3d self_{0,0,0};
-  std::unordered_map<uint16_t, Eigen::Vector3d> neighbours_;
+  double kp_{0.7};           ///< Spring gain
+  double desired_dist_{10.0};///< Equilibrium distance d0
+  double r_safe_{1.5};       ///< Minimum effective distance
+  double kd_{0.2};           ///< Damping gain
+  double v_max_{3.0};        ///< Maximum allowed speed
+
+  Eigen::Vector3d self_{0,0,0};       ///< Self position (unused in this compute)
+  Eigen::Vector3d vel_current_{0,0,0};///< Current velocity for damping
+  std::unordered_map<uint16_t, Eigen::Vector3d> rel_distances_;
+  uint8_t ident_{0};                  ///< Unique identifier (optional)
 };
 
 } // namespace state_sharing_demo

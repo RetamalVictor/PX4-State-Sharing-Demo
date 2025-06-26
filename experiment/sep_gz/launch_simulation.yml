@@ -17,10 +17,13 @@ pre_window:
   - export ROS_DOMAIN_ID=15
   - export STATE_SHARING_INTERFACE=wlp0s20f3
   # - export HEADLESS=1
-  - export PX4_SIM_SPEED_FACTOR=0.7
+  - export PX4_SIM_SPEED_FACTOR=1
   - export PX4_SIM_TIME=1
   - export PX4_PARAM_UXRCE_DDS_SYNCT=1
   - export PX4_PARAM_UXRCE_DDS_SYNCC=1
+  - export PX4_HOME_LAT=10.10
+  - export PX4_HOME_LON=12.124123
+  - export PX4_HOME_ALT=0.0
   - export GZ_SIM_RESOURCE_PATH=/setup_repos/PX4-Autopilot/Tools/simulation/gz/models:/setup_repos/PX4-Autopilot/Tools/simulation/gz/worlds
 
   # -------------------------------------------------------------------
@@ -53,10 +56,10 @@ windows:
           PX4_GZ_STANDALONE=1 PX4_SYS_AUTOSTART=4001 PX4_GZ_MODEL_POSE="0,0" PX4_SIM_MODEL=gz_x500 ./build/px4_sitl_default/bin/px4 -i 1
         - |
           cd /setup_repos/PX4-Autopilot
-          PX4_GZ_STANDALONE=1 PX4_SYS_AUTOSTART=4001 PX4_GZ_MODEL_POSE="0,1" PX4_SIM_MODEL=gz_x500 ./build/px4_sitl_default/bin/px4 -i 2
+          PX4_GZ_STANDALONE=1 PX4_SYS_AUTOSTART=4001 PX4_GZ_MODEL_POSE="0,5" PX4_SIM_MODEL=gz_x500 ./build/px4_sitl_default/bin/px4 -i 2
         - |
           cd /setup_repos/PX4-Autopilot
-          PX4_GZ_STANDALONE=1 PX4_SYS_AUTOSTART=4001 PX4_GZ_MODEL_POSE="0,2" PX4_SIM_MODEL=gz_x500 ./build/px4_sitl_default/bin/px4 -i 3
+          PX4_GZ_STANDALONE=1 PX4_SYS_AUTOSTART=4001 PX4_GZ_MODEL_POSE="0,10" PX4_SIM_MODEL=gz_x500 ./build/px4_sitl_default/bin/px4 -i 3
 
 
   # ------------------------------------------------ micro-ROS agent -
@@ -80,22 +83,26 @@ windows:
             sleep 22
             ros2 run state_sharing_demo offboard_control_main \
               --ros-args -r __ns:=/px4_1 \
-              -p use_sim_time:=true -p takeoff_alt:=5.0 -p tick_hz:=10.0
+              -p use_sim_time:=true -p takeoff_alt:=15.0 -p tick_hz:=10.0
 
         # controller for PX4 instance 2  (MAV_SYS_ID 2)
         - |
             sleep 25
             ros2 run state_sharing_demo offboard_control_main\
               --ros-args -r __ns:=/px4_2 \
-              -p use_sim_time:=true -p takeoff_alt:=5.0 -p tick_hz:=10.0
+              -p use_sim_time:=true -p takeoff_alt:=15.0 -p tick_hz:=10.0
 
         # controller for PX4 instance 3  (MAV_SYS_ID 3)
         - |
             sleep 27
             ros2 run state_sharing_demo offboard_control_main \
               --ros-args -r __ns:=/px4_3 \
-              -p use_sim_time:=true -p takeoff_alt:=5.0 -p tick_hz:=10.0
+              -p use_sim_time:=true -p takeoff_alt:=15.0 -p tick_hz:=10.0
 
+  # ------------------------------------------------ debug ------
+  - debug:
+      layout: tiled
+      panes:
         # --- optional monitoring panes (keep or drop) ----------------
         - |
             sleep 19

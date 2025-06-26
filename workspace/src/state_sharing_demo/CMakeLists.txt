@@ -17,7 +17,8 @@ find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 # Library: implementation (src/) + public headers (include/)
 ###############################################################################
 add_library(offboard_control SHARED
-  src/offboard_control_srv.cpp)
+  src/offboard_control_srv.cpp
+  src/velocity_controller.cpp)
 
 target_include_directories(offboard_control PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

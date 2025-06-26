@@ -1,4 +1,6 @@
 #include "offboard_control_srv.hpp"
+#include "transforms.hpp"  
+
 #include <chrono>
 #include <thread>
 
@@ -14,19 +16,23 @@ OffboardControl::OffboardControl(const rclcpp::NodeOptions &opts)
     : rclcpp::Node("offboard_control", opts)
 {
     /* ─── Declare & get parameters ─────────────────────────────────────────*/
-    takeoff_alt_ = declare_parameter<double>("takeoff_alt", 5.0);   // [m]
+    takeoff_alt_ = declare_parameter<double>("takeoff_alt", 15.0);   // [m]
     tick_hz_     = declare_parameter<double>("tick_hz",     10.0);  // [Hz]
+    max_velocity_ = declare_parameter<double>("max_velocity", 2.0); // [m/s]
+    min_altitude_ = declare_parameter<double>("min_altitude", 5.0); // [m]
 
     /* ─── Derive namespace & MAVLink SYS_ID ───────────────────────────────*/
     std::string ns = get_namespace();  // e.g. "/px4_2"
     if (ns.rfind("/px4_", 0) == 0) {
-    ident_ = static_cast<uint8_t>(std::stoi(ns.substr(5)));  // zero‑indexed
+        ident_ = static_cast<uint8_t>(std::stoi(ns.substr(5)));  // zero‑indexed
     } else {
-    RCLCPP_WARN(get_logger(),
-                "Namespace '%s' does not follow /px4_N; default ident = 1",
-                ns.c_str());
-    ident_ = 1;
+        RCLCPP_WARN(get_logger(),
+                    "Namespace '%s' does not follow /px4_N; default ident = 1",
+                    ns.c_str());
+        ident_ = 1;
     }
+
+    vel_ctrl_.setIdent(ident_);
     std::string prefix = "/" + ns.substr(1) + "/fmu/";  // "/px4_N/fmu/"
 
     /* ─── Publishers / client / subscriber ────────────────────────────────*/
@@ -45,7 +51,7 @@ OffboardControl::OffboardControl(const rclcpp::NodeOptions &opts)
     );
 
     state_sharing_out_sub_ = create_subscription<StateSharingMsg>(
-        prefix + "out/outgoing_state_sharing",
+        prefix + "out/incoming_state_sharing",
         rclcpp::SensorDataQoS(),
         std::bind(&OffboardControl::onStateSharing, this, std::placeholders::_1)
     );
@@ -214,6 +220,16 @@ static double current_alt_ = NAN_ALT;
 
 void OffboardControl::onLocalPos(VehicleLocalPosMsg::SharedPtr msg)
 {
+    if (!have_ref_) {
+    ref_lat_  = msg->ref_lat;    // degrees
+    ref_lon_  = msg->ref_lon;    // degrees
+    ref_alt_  = msg->ref_alt;    // metres AMSL
+    have_ref_ = true;
+    RCLCPP_INFO(get_logger(),
+      "LLA reference set: lat=%.6f lon=%.6f alt=%.2f",
+      ref_lat_, ref_lon_, ref_alt_);
+  }
+
   current_pos_.x() = msg->x;
   current_pos_.y() = msg->y;
   current_pos_.z() = msg->z;
@@ -223,18 +239,32 @@ void OffboardControl::onLocalPos(VehicleLocalPosMsg::SharedPtr msg)
 
 void OffboardControl::onStateSharing(StateSharingMsg::SharedPtr msg)
 {
-  Eigen::Vector3d neigh{
-    static_cast<double>(msg->global_position_lon),
-    static_cast<double>(msg->global_position_lat),
-    static_cast<double>(msg->global_position_alt)
-  };
-  if (!state_sharing_active_) {
-    state_sharing_active_ = true;
-    RCLCPP_INFO(get_logger(),
-                "Received first StateSharingMsg; state sharing active.");
+  if (!state_sharing_active_) { state_sharing_active_ = true;}
+  if (!have_ref_) {
+    RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
+      "No global ref yet; skipping relative computation");
+    return;
   }
- 
-  vel_ctrl_.updateNeighbour(msg->frame_id, neigh);
+
+  if (msg->frame_id == ident_ + 1){return;}
+  // 1) Compute neighbour’s NED in home frame
+  Eigen::Vector3d neigh_ned = llhToNed(
+    msg->global_position_lat,
+    msg->global_position_lon,
+    msg->global_position_alt,
+    ref_lat_, ref_lon_, ref_alt_
+  );
+
+  // 2) Compute *relative* to us
+  Eigen::Vector3d rel = neigh_ned - current_pos_;
+
+  // // 3) Log ego‐centric coordinates
+  // RCLCPP_INFO(get_logger(),
+  //   "Agent %u relative NED [N=%.2f, E=%.2f, D=%.2f]",
+  //   msg->frame_id, rel.x(), rel.y(), rel.z());
+
+  // 4) Store in the controller’s rel‐distance map
+  vel_ctrl_.updateNeighbourDistance(msg->frame_id, rel);
 }
 
 /*──────────────────────────────────────────────────────────────────────────*/
@@ -244,10 +274,29 @@ void OffboardControl::publishCurrentSetpoint()
 {
   using enum State;
   switch (fsm_.state()) {
-    case State::VelocityControl:
+    case State::VelocityControl: {
+      if (!std::isnan(current_alt_) && current_alt_ < min_altitude_) {
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
+          "Below min_altitude %.2f m: holding position", min_altitude_);
+        publishOffboardCtrlMode(true, false);
+        publishPositionSetpoint(
+          static_cast<float>(ident_), 0.0,
+          -min_altitude_,  // Z is down in NED
+          0.0);
+        break;
+      }
+
       publishOffboardCtrlMode(false, true);
-      publishVelocitySetpoint(-5.0, 0.0, 0.0, 0.0);
+      Eigen::Vector3d vel_sp = vel_ctrl_.compute();
+      publishVelocitySetpoint(
+        vel_sp.x(), vel_sp.y(), vel_sp.z(), 
+        /*yaw_rate=*/0.0);
+        
+        // RCLCPP_INFO(get_logger(),
+        //   "Publishing velocity setpoint [%.2f, %.2f, %.2f]",
+        //    vel_sp.x(), vel_sp.y(), vel_sp.z());
       break;
+    }
 
     default:
       publishOffboardCtrlMode(true, false);

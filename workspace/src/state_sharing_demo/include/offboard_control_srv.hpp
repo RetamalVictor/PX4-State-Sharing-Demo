@@ -64,11 +64,15 @@ private:
 
     StateMachine<State> fsm_{this, State::WaitForHeartbeat};
     VelocityController    vel_ctrl_;        
-    Eigen::Vector3d       current_pos_{};   
+    Eigen::Vector3d       current_pos_{};
+    bool have_ref_{false};
+    double ref_lat_{0.0}, ref_lon_{0.0}, ref_alt_{0.0};   
 
     /* ───── Parameters ───── */
     double takeoff_alt_;   ///< metres (-Z in NED)
     double tick_hz_;   ///< control loop frequency
+    double max_velocity_;  ///< m/s cap on the resulting velocity norm
+    double min_altitude_;  ///< metres AMSL—don’t let Z go below this
 
     /* ───── PX4 identifiers ───── */
     uint8_t ident_{1};           ///< SYS_ID – 1-indexed like MAVLink
