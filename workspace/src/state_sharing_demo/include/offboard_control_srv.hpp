@@ -95,10 +95,12 @@ private:
 
     /* ───── Helper API ───── */
     void sendVehicleCommand(uint16_t cmd, float p1 = 0.f, float p2 = 0.f);
+    void sendLandingCommand();
     void publishOffboardCtrlMode(bool pos_ctrl, bool vel_ctrl);
     void publishPositionSetpoint(double x, double y, double z, double yaw);
     void publishVelocitySetpoint(double vx, double vy, double vz, double yaw_rate);
     void publishCurrentSetpoint();
+    StateSharingMsg current_state_;
 
     /* ───── Callbacks ───── */
     void onCmdResult(rclcpp::Client<VehicleCommandSrv>::SharedFuture);

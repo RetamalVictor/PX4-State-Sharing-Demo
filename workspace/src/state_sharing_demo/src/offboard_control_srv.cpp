@@ -1,6 +1,9 @@
 #include "offboard_control_srv.hpp"
 #include "transforms.hpp"  
 
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2/LinearMath/Matrix3x3.h>
+
 #include <chrono>
 #include <thread>
 
@@ -45,7 +48,7 @@ OffboardControl::OffboardControl(const rclcpp::NodeOptions &opts)
     vehicle_cmd_cli_ = create_client<VehicleCommandSrv>(prefix + "vehicle_command");
 
     local_pos_sub_ = create_subscription<VehicleLocalPosMsg>(
-        prefix + "out/vehicle_local_position",
+        prefix + "out/vehicle_local_position_v1",
         rclcpp::SensorDataQoS(),  
         std::bind(&OffboardControl::onLocalPos, this, std::placeholders::_1)
     );
@@ -165,6 +168,38 @@ void OffboardControl::sendVehicleCommand(uint16_t cmd, float p1, float p2)
       std::bind(&OffboardControl::onCmdResult, this, std::placeholders::_1));
 }
 
+
+void OffboardControl::sendLandingCommand()
+{
+  auto request = std::make_shared<VehicleCommandSrv::Request>();
+
+  px4_msgs::msg::VehicleCommand msg{};
+  msg.command = px4_msgs::msg::VehicleCommand::VEHICLE_CMD_NAV_LAND;
+  tf2::Quaternion q(current_state_.q[0], current_state_.q[1], 
+    current_state_.q[2], current_state_.q[3]);
+
+  double roll, pitch, yaw;
+  tf2::Matrix3x3(q).getRPY(roll, pitch, yaw);  // Convert to Euler angles
+
+
+  msg.param4 = yaw;
+  msg.param5 = current_state_.global_position_lat;
+  msg.param6 = current_state_.global_position_lon;
+  msg.param7 = 0.0;
+  msg.target_system    = ident_ + 1;  // PX4 expects 1‑indexed
+  msg.target_component = 1;
+  msg.source_system    = ident_ + 1;
+  msg.source_component = 1;
+  msg.from_external    = true;
+  msg.timestamp        = get_clock()->now().nanoseconds() / 1000ULL;
+
+  request->request = msg;
+  service_done_    = false;
+
+  vehicle_cmd_cli_->async_send_request(
+      request,
+      std::bind(&OffboardControl::onCmdResult, this, std::placeholders::_1));
+}
 /*──────────────────────────────────────────────────────────────────────────*/
 /*                        Public command helpers                            */
 /*──────────────────────────────────────────────────────────────────────────*/
@@ -246,7 +281,9 @@ void OffboardControl::onStateSharing(StateSharingMsg::SharedPtr msg)
     return;
   }
 
-  if (msg->frame_id == ident_ + 1){return;}
+  if (msg->frame_id == ident_ + 1){
+    current_state_ = *msg;
+    return;}
   // 1) Compute neighbour’s NED in home frame
   Eigen::Vector3d neigh_ned = llhToNed(
     msg->global_position_lat,
@@ -254,6 +291,8 @@ void OffboardControl::onStateSharing(StateSharingMsg::SharedPtr msg)
     msg->global_position_alt,
     ref_lat_, ref_lon_, ref_alt_
   );
+
+  
 
   // 2) Compute *relative* to us
   Eigen::Vector3d rel = neigh_ned - current_pos_;
@@ -359,10 +398,18 @@ void OffboardControl::onTimer()
       break;
 
     case State::VelocityControl:
+      if (fsm_.since(60.0)){
+        sendLandingCommand();
+        fsm_.transit(Landing);
+      }
       break;
 
     case Landing:
-      /* Not implemented */
+      if (service_done_ && service_result_ == 0) {
+        disarm();
+        RCLCPP_INFO(get_logger(), "landing accepted");
+        timer_->cancel();
+      }
       break;
   }
 }
