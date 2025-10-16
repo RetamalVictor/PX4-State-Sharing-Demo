@@ -60,7 +60,7 @@ RUN /bin/bash -c 'echo mavlink start  \
 RUN /bin/bash -c 'echo state_sharing start'  \
 >> /setup_repos/PX4-Autopilot/build/px4_sitl_default/etc/init.d-posix/px4-rc.mavlink
  
-RUN sudo apt install ros-humble-ros-gzharmonic -y
+RUN sudo apt update && sudo apt install ros-humble-ros-gzharmonic -y
 
 RUN /bin/bash -c "echo source /setup_repos/uros_ws/install/local_setup.sh" >> ~/.bashrc
 RUN /bin/bash -c "git config --global --add safe.directory '*'"

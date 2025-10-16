@@ -281,7 +281,7 @@ void OffboardControl::onStateSharing(StateSharingMsg::SharedPtr msg)
     return;
   }
 
-  if (msg->frame_id == ident_ + 1){
+  if (msg->agent_id == ident_ + 1){
     current_state_ = *msg;
     return;}
   // 1) Compute neighbour’s NED in home frame
@@ -300,10 +300,10 @@ void OffboardControl::onStateSharing(StateSharingMsg::SharedPtr msg)
   // // 3) Log ego‐centric coordinates
   // RCLCPP_INFO(get_logger(),
   //   "Agent %u relative NED [N=%.2f, E=%.2f, D=%.2f]",
-  //   msg->frame_id, rel.x(), rel.y(), rel.z());
+  //   msg->agent_id, rel.x(), rel.y(), rel.z());
 
   // 4) Store in the controller’s rel‐distance map
-  vel_ctrl_.updateNeighbourDistance(msg->frame_id, rel);
+  vel_ctrl_.updateNeighbourDistance(msg->agent_id, rel);
 }
 
 /*──────────────────────────────────────────────────────────────────────────*/
@@ -406,7 +406,6 @@ void OffboardControl::onTimer()
 
     case Landing:
       if (service_done_ && service_result_ == 0) {
-        disarm();
         RCLCPP_INFO(get_logger(), "landing accepted");
         timer_->cancel();
       }
