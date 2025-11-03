@@ -8,7 +8,7 @@ pre_window:
   - export TZ='Asia/Dubai'
   - source ~/.bashrc
   - source /setup_repos/uros_ws/install/setup.bash
-  - source /app/workspace/install/setup.bash          # your ROS 2 overlay
+  - source /app/install/setup.bash          # your ROS 2 overlay
   - export PYTHONOPTIMIZE=1
   - export PYTHONDONTWRITEBYTECODE=1
   - export PX4_GZ_MODEL=x500                          # ⟵ changed
@@ -105,8 +105,11 @@ windows:
       panes:
         # --- optional monitoring panes (keep or drop) ----------------
         - |
-            sleep 19
+            sleep 30
             ros2 topic echo /px4_1/fmu/in/incoming_state_sharing_control
         - |
-            sleep 19
+            sleep 30
             ros2 topic echo /px4_1/fmu/out/incoming_state_sharing
+        - |
+            sleep 30
+            ros2 run state_sharing_demo distance_plotter.py

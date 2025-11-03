@@ -59,6 +59,11 @@ install(TARGETS
 
 install(DIRECTORY include/ DESTINATION include)
 
+# Install Python scripts
+install(PROGRAMS
+  apps/distance_plotter.py
+  DESTINATION lib/${PROJECT_NAME})
+
 ###############################################################################
 # Export for downstream packages
 ###############################################################################
