@@ -53,4 +53,4 @@ The demo implements distributed formation control where each UAV:
 [offboard_control] Publishing velocity setpoint for formation maintenance
 ```
 
-The UAVs will takeoff, establish state sharing links, and converge to a stable formation using only MAVLink broadcast communication bridged through micro-DDS to ROS2.
+The UAVs will takeoff, establish state sharing links, and converge to a stable formation using only MAVLink broadcast communication.
