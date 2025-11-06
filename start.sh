@@ -10,21 +10,29 @@ cd ..
 parent_folder=$PWD
 cd $current_folder
 
-IMAGE_NAME=harbor.arrc.tii.ae/vicom/docker/promoted/px4_x86_64:test.final_pr
+BRANCH_NAME="${1:-test/state_sharing}"
+IMAGE_VERSION="${BRANCH_NAME//\//.}"
+IMAGE_NAME="px4_x86_64:${IMAGE_VERSION}"
 echo the version of the image to run is $IMAGE_NAME
 
 # Allow Docker to interact with the X server
 echo -e "${YELLOW}[INFO] Granting access to X server for Docker...${NC}"
 xhost +local:root > /dev/null
 
-docker run -it --rm \
+GPU_ARGS=() 
+GPU_ARGS+=(--gpus all) 
+GPU_ARGS+=(-e NVIDIA_VISIBLE_DEVICES=all) 
+GPU_ARGS+=(-e NVIDIA_DRIVER_CAPABILITIES=graphics,utility,compute)
+
+docker run --rm -it --gpus all --runtime=nvidia --network host --privileged \
     --privileged \
     --env="DISPLAY" \
     --workdir="/app" \
     --volume="$current_folder:/app" \
     --volume="/dev:/dev" \
     --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" \
-    --network host \
+    -v /etc/hosts:/etc/hosts \
+    "${GPU_ARGS[@]}" \
     $IMAGE_NAME \
     "$@"
 

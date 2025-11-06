@@ -6,8 +6,8 @@ RED='\033[0;31m'     # red text
 YELLOW='\033[1;33m'  # yellow text
 NC='\033[0m'         # no color / reset
 
-BRANCH_NAME="${1:-test/px4_pr}"
-IMAGE_VERSION="test.px4_pr_v2"
+BRANCH_NAME="${1:-test/state_sharing}"
+IMAGE_VERSION="${BRANCH_NAME//\//.}"
 IMAGE_NAME="px4_x86_64:${IMAGE_VERSION}"
 
 # Announce build start
