@@ -2,6 +2,8 @@
 
 This directory demonstrates the PX4 `state_sharing` module in action with a 3-UAV formation control system.
 
+Currently in PR[#25884](https://github.com/PX4/PX4-Autopilot/pull/25884)
+
 ## How It Works
 
 The demo implements distributed formation control where each UAV:
