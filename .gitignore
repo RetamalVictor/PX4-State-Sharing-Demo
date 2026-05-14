@@ -42,7 +42,6 @@ Thumbs.db
 
 # Large media files
 *.mp4
-!assets/*.mp4
 *.tiff
 *.avi
 *.flv
