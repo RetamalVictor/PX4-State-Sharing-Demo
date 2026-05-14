@@ -1,6 +1,6 @@
 # State Sharing Demo: Multi-Agent Formation Control
 
-![Demo Video](assets/demo_video.mp4)
+<video src="https://raw.githubusercontent.com/RetamalVictor/PX4-State-Sharing-Demo/main/assets/demo_video.mp4" controls width="100%"></video>
 
 This directory demonstrates the PX4 `state_sharing` module in action with a 3-UAV formation control system.
 
